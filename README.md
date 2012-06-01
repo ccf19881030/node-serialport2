@@ -15,7 +15,7 @@ environment.
 # Quick Example
 
 ```javascript
-var SerialPort = require('../').SerialPort;
+var SerialPort = require('serialport2').SerialPort;
 var port = new SerialPort();
 
 port.on('data', function(data) {
