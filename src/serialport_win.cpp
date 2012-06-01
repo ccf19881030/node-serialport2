@@ -1,6 +1,7 @@
 
 #include "serialport.h"
 #include <list>
+#include <node_version.h>
 #include "win/disphelper.h"
 
 #ifdef WIN32
@@ -149,7 +150,11 @@ bool IsClosingHandle(int fd) {
 }
 
 void EIO_AfterWatchPort(uv_work_t* req) {
-  uv_ref(uv_default_loop());
+  #if NODE_VERSION_AT_LEAST(0, 7, 9)
+    // no solution yet but atleast we don't break the build
+  #else
+    uv_ref(uv_default_loop());
+  #endif
   WatchPortBaton* data = static_cast<WatchPortBaton*>(req->data);
   if(data->disconnected) {
     v8::Handle<v8::Value> argv[1];
@@ -193,7 +198,11 @@ void AfterOpenSuccess(int fd, v8::Handle<v8::Value> dataCallback, v8::Handle<v8:
   // after we queue the work we unref the loop so that we don't stop the process from exiting
   // if the user hasn't closed the port. See also uv_ref in EIO_AfterWatchPort this will keep the unref/ref count equal.
   uv_queue_work(uv_default_loop(), req, EIO_WatchPort, EIO_AfterWatchPort);
-  uv_unref(uv_default_loop());
+  #if NODE_VERSION_AT_LEAST(0, 7, 9)
+    // no solution yet but atleast we don't break the build
+  #else
+    uv_unref(uv_default_loop());
+  #endif
 }
 
 void EIO_Write(uv_work_t* req) {
