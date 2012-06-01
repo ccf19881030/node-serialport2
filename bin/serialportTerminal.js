@@ -75,7 +75,4 @@ var openOptions = {
   stopBits: args.stopbits
 };
 port.open(args.portname, openOptions, function (err) {
-  if (err) {
-    return console.error(err.stack);
-  }
 });
