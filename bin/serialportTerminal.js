@@ -55,7 +55,11 @@ process.stdin.on('data', function (s) {
       process.stdout.write(s);
     }
   }
-  port.write(s);
+  port.write(s, function (err) {
+    if (err) {
+      console.log(err);
+    }
+  });
 });
 
 var port = new SerialPort();
