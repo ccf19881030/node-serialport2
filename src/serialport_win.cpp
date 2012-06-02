@@ -1,7 +1,6 @@
 
 #include "serialport.h"
 #include <list>
-#include <node_version.h>
 #include "win/disphelper.h"
 
 #ifdef WIN32
@@ -152,6 +151,10 @@ void EIO_WatchPort(uv_work_t* req) {
 
       if(!GetOverlappedResult((HANDLE)data->fd, &ov, &data->bytesRead, TRUE)) {
         DWORD lastError = GetLastError();
+        if(lastError == ERROR_OPERATION_ABORTED) {
+          data->disconnected = true;
+          return;
+        }
         ErrorCodeToString("Reading from COM port (GetOverlappedResult)", lastError, data->errorString);
         return;
       }
@@ -173,11 +176,6 @@ bool IsClosingHandle(int fd) {
 }
 
 void EIO_AfterWatchPort(uv_work_t* req) {
-  #if NODE_VERSION_AT_LEAST(0, 7, 9)
-    // no solution yet but atleast we don't break the build
-  #else
-    uv_ref(uv_default_loop());
-  #endif
   WatchPortBaton* data = static_cast<WatchPortBaton*>(req->data);
   if(data->disconnected) {
     v8::Handle<v8::Value> argv[1];
@@ -219,14 +217,7 @@ void AfterOpenSuccess(int fd, v8::Handle<v8::Value> dataCallback, v8::Handle<v8:
   uv_work_t* req = new uv_work_t();
   req->data = baton;
 
-  // after we queue the work we unref the loop so that we don't stop the process from exiting
-  // if the user hasn't closed the port. See also uv_ref in EIO_AfterWatchPort this will keep the unref/ref count equal.
   uv_queue_work(uv_default_loop(), req, EIO_WatchPort, EIO_AfterWatchPort);
-  #if NODE_VERSION_AT_LEAST(0, 7, 9)
-    // no solution yet but atleast we don't break the build
-  #else
-    uv_unref(uv_default_loop());
-  #endif
 }
 
 void EIO_Write(uv_work_t* req) {
