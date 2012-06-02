@@ -36,7 +36,9 @@
   "devDependencies": {
     "nodeunit": "~0.7.4"
   },
-  "scripts": {},
+  "scripts": {
+    "test": "node ./node_modules/nodeunit/bin/nodeunit test"
+  },
   "main": "./index.js",
   "bin": {
     "serialportlist": "./bin/serialportList.js",

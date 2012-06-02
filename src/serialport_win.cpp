@@ -37,7 +37,7 @@ void EIO_Open(uv_work_t* req) {
     0,
     NULL,
     OPEN_EXISTING,
-    0,
+    FILE_FLAG_OVERLAPPED,
     NULL);
   if (file == INVALID_HANDLE_VALUE) {
     char temp[100];
@@ -124,14 +124,37 @@ void EIO_WatchPort(uv_work_t* req) {
   data->disconnected = false;
 
   while(true){
-    if(!ReadFile(data->fd, data->buffer, 100, &data->bytesRead, NULL)) {
+    OVERLAPPED ov = {0};
+    ov.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+
+    if(!ReadFile(data->fd, data->buffer, 100, &data->bytesRead, &ov)) {
       data->errorCode = GetLastError();
       if(data->errorCode == ERROR_OPERATION_ABORTED) {
         data->disconnected = true;
         return;
       }
-      ErrorCodeToString("ReadFile", GetLastError(), data->errorString);
-      return;
+      if(data->errorCode != ERROR_IO_PENDING) {
+        ErrorCodeToString("Reading from COM port (ReadFile)", GetLastError(), data->errorString);
+        return;
+      }
+
+      DWORD waitResult = WaitForSingleObject(ov.hEvent, 1000);
+      if(waitResult == WAIT_TIMEOUT) {
+        data->bytesRead = 0;
+        data->errorCode = 0;
+        return;
+      }
+      if(waitResult != WAIT_OBJECT_0) {
+        DWORD lastError = GetLastError();
+        ErrorCodeToString("Reading from COM port (WaitForSingleObject)", lastError, data->errorString);
+        return;
+      }
+
+      if(!GetOverlappedResult((HANDLE)data->fd, &ov, &data->bytesRead, TRUE)) {
+        DWORD lastError = GetLastError();
+        ErrorCodeToString("Reading from COM port (GetOverlappedResult)", lastError, data->errorString);
+        return;
+      }
     }
     if(data->bytesRead > 0) {
       return;
@@ -161,6 +184,7 @@ void EIO_AfterWatchPort(uv_work_t* req) {
     v8::Function::Cast(*data->disconnectedCallback)->Call(v8::Context::GetCurrent()->Global(), 0, argv);
     goto cleanup;
   }
+
   if(data->bytesRead > 0) {
     v8::Handle<v8::Value> argv[1];
     argv[0] = node::Buffer::New(data->buffer, data->bytesRead)->handle_;
@@ -208,10 +232,28 @@ void AfterOpenSuccess(int fd, v8::Handle<v8::Value> dataCallback, v8::Handle<v8:
 void EIO_Write(uv_work_t* req) {
   WriteBaton* data = static_cast<WriteBaton*>(req->data);
 
+  OVERLAPPED ov = {0};
+  ov.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+
   DWORD bytesWritten;
-  if(!WriteFile((HANDLE)data->fd, data->bufferData, data->bufferLength, &bytesWritten, NULL)) {
-    ErrorCodeToString("Writing from COM port", GetLastError(), data->errorString);
-    return;
+  if(!WriteFile((HANDLE)data->fd, data->bufferData, data->bufferLength, &bytesWritten, &ov)) {
+    DWORD lastError = GetLastError();
+    if(lastError != ERROR_IO_PENDING) {
+      ErrorCodeToString("Writing to COM port (WriteFile)", lastError, data->errorString);
+      return;
+    }
+
+    if(WaitForSingleObject(ov.hEvent, 1000) != WAIT_OBJECT_0) {
+      DWORD lastError = GetLastError();
+      ErrorCodeToString("Writing to COM port (WaitForSingleObject)", lastError, data->errorString);
+      return;
+    }
+
+    if(!GetOverlappedResult((HANDLE)data->fd, &ov, &bytesWritten, TRUE)) {
+      DWORD lastError = GetLastError();
+      ErrorCodeToString("Writing to COM port (GetOverlappedResult)", lastError, data->errorString);
+      return;
+    }
   }
 
   data->result = bytesWritten;
