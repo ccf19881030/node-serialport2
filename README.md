@@ -12,6 +12,8 @@ npm install serialport2
 See [node-gyp](https://github.com/TooTallNate/node-gyp) for instruction on getting a working node-gyp
 environment.
 
+**Note for beagleboard/bone users.** You may have to install the python-compiler package (opkg install python-compiler).
+
 # Quick Example
 
 ```javascript
