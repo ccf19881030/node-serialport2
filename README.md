@@ -78,6 +78,9 @@ __Arguments__
   * buffer - This can be a node Buffer object or a string.
   * callback(err, byteWritten) - Callback called after writing bytes.
 
+**NOTE:** When calling write multiple times sequentially, you must ensure the previous write call has completed, or
+byte ordering may not be preserved. This may be fixed in future versions.
+
 ### close(callback)
 
 Closes the serial port.
