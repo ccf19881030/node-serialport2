@@ -1,3 +1,5 @@
+# NOTE: This project has merged with [serialport](https://github.com/voodootikigod/node-serialport). Future development will continue there. I will be depricating this module in the future.
+
 # SerialPort2
 
 Node.js serial port driver. Works on Windows, OSX, and linux.
